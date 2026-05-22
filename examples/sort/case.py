@@ -53,10 +53,12 @@ def strong_spec(impl):
     @given(_strategy)
     def test(xs):
         original = list(xs)
-        ys = impl(list(xs))
+        arg = list(xs)
+        ys = impl(arg)
         assert ys == sorted(ys), "output not sorted"
         assert Counter(ys) == Counter(original), "elements not preserved"
         assert len(ys) == len(original), "length not preserved"
+        assert arg == original, "input was mutated"
     return test
 
 
