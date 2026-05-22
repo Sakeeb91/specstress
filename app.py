@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import inspect
+import os
 
 import streamlit as st
 
 from examples import REGISTRY
 from specstress.api import stress_case
+from specstress.llm import MissingAPIKeyError, suggest_stronger_spec
 from specstress.reports import render_markdown
 
 
@@ -15,6 +17,27 @@ DIAGNOSIS_BADGE = {
     "OVERCONSTRAINED": ("🛑", "Overconstrained"),
     "AMBIGUOUS": ("❓", "Ambiguous"),
 }
+
+
+def _api_key_available() -> bool:
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return True
+    try:
+        return bool(st.secrets.get("ANTHROPIC_API_KEY"))
+    except Exception:
+        return False
+
+
+def _load_api_key_into_env() -> None:
+    """Streamlit Cloud stores secrets in st.secrets; copy into env for the SDK."""
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return
+    try:
+        key = st.secrets.get("ANTHROPIC_API_KEY")
+    except Exception:
+        key = None
+    if key:
+        os.environ["ANTHROPIC_API_KEY"] = key
 
 
 st.set_page_config(page_title="SpecStress", layout="wide")
@@ -47,8 +70,21 @@ with col_spec:
 
 if run_clicked:
     with st.spinner("Stress-testing spec against adversarial implementations..."):
-        report = stress_case(case, spec_name)
+        st.session_state["report"] = stress_case(case, spec_name)
+        st.session_state["report_case"] = case.name
+        st.session_state["report_spec"] = spec_name
+        st.session_state.pop("suggestion", None)
 
+report = st.session_state.get("report")
+report_case_name = st.session_state.get("report_case")
+report_spec_name = st.session_state.get("report_spec")
+report_is_current = (
+    report is not None
+    and report_case_name == case.name
+    and report_spec_name == spec_name
+)
+
+if report and report_is_current:
     icon, label = DIAGNOSIS_BADGE[report.diagnosis]
     st.markdown(f"## Diagnosis: {icon} **{label}**")
 
@@ -84,6 +120,35 @@ if run_clicked:
         st.subheader("Notes")
         for n in report.notes:
             st.info(n)
+
+    if report.diagnosis == "UNDERCONSTRAINED":
+        st.subheader("🤖 Strengthen this spec with Claude")
+        st.caption(
+            "Claude reads the intent, the weak spec, and the surviving mutants, "
+            "and proposes the missing properties."
+        )
+
+        if not _api_key_available():
+            st.info(
+                "Set `ANTHROPIC_API_KEY` to enable AI suggestions. Locally: "
+                "`export ANTHROPIC_API_KEY=...`. On Streamlit Cloud: add it under "
+                "**Settings → Secrets** as `ANTHROPIC_API_KEY = \"...\"`."
+            )
+        else:
+            if st.button("Suggest stronger spec", type="secondary"):
+                _load_api_key_into_env()
+                with st.spinner("Asking Claude for missing properties..."):
+                    try:
+                        st.session_state["suggestion"] = suggest_stronger_spec(
+                            case, spec_name, report
+                        )
+                    except MissingAPIKeyError as e:
+                        st.error(str(e))
+                    except Exception as e:  # noqa: BLE001 — surface SDK errors verbatim
+                        st.error(f"Claude API error: {e}")
+
+        if st.session_state.get("suggestion"):
+            st.markdown(st.session_state["suggestion"])
 
     failures = [r for r in report.results if not r.passed]
     if failures:
