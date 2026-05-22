@@ -41,7 +41,12 @@ api.stress_case(case, spec_name)
         │
         ▼
 reports.render_markdown(CaseReport)   or   app.py renders it in Streamlit
+                                                │
+                                                └── llm.suggest_stronger_spec(case, spec_name, report)
+                                                    when diagnosis == UNDERCONSTRAINED
 ```
+
+**LLM suggester (`specstress/llm.py`):** When a spec is `UNDERCONSTRAINED`, the UI offers a button that sends the intent, current spec source, reference source, and surviving-mutant sources to Claude (`claude-sonnet-4-6`) and renders the assistant's suggested missing properties as Markdown. The system prompt uses `cache_control: ephemeral` for prompt caching. `ANTHROPIC_API_KEY` is read from `os.environ` first, then from `st.secrets`. Tests mock the client — no real API calls in CI.
 
 **Key contract — `SpecFactory`:** A spec is not a plain assertion. It is a *factory* `impl -> Callable[[], None]` whose return value is a zero-arg, Hypothesis-decorated test function. `runner.run_case` invokes the factory, then calls the test, captures any exception, and returns a `RunResult`. This indirection is what lets one spec be reused across many implementations.
 
