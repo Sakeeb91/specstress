@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "specstress"
+version = "0.1.0"
+description = "Red-team your specs before AI code uses them"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "streamlit>=1.32",
+  "hypothesis>=6.100",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+include = ["specstress*", "examples*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.hypothesis/
+.DS_Store
+*.egg-info/
+dist/
+build/
+reports/*.md
+!reports/sample_report.md
+.streamlit/secrets.toml
