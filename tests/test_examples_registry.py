@@ -1,8 +1,8 @@
 from examples import REGISTRY
 
 
-def test_registry_contains_three_cases():
-    assert set(REGISTRY.keys()) == {"sort", "withdraw", "sanitize"}
+def test_registry_contains_expected_cases():
+    assert set(REGISTRY.keys()) == {"sort", "withdraw", "sanitize", "money", "jwt"}
 
 
 def test_registry_cases_have_weak_and_strong_specs():
