@@ -15,7 +15,7 @@ implementation against the spec under Hypothesis and produces:
 - a **mutation score** — fraction of known-bad implementations the spec catches
 - a **diagnosis** — `STRONG`, `UNDERCONSTRAINED`, `OVERCONSTRAINED`, or `AMBIGUOUS`
 - a downloadable **Markdown report** with counterexamples
-- optionally, **Claude-suggested missing properties** to turn a weak spec into a strong one
+- optionally, **Qwen3-suggested missing properties** (via [Tinker](https://thinkingmachines.ai/tinker/)) to turn a weak spec into a strong one
 
 ## Demo
 
@@ -26,10 +26,10 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-To enable the **Suggest stronger spec** button, export an Anthropic API key:
+To enable the **Suggest stronger spec** button, export a Tinker API key:
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
+export TINKER_API_KEY=tml-...
 ```
 
 On Streamlit Cloud, paste the key under **Settings → Secrets** instead (see
@@ -52,7 +52,7 @@ specstress/
   scorer.py     # mutation score + diagnosis rules
   reports.py    # render CaseReport as Markdown
   api.py        # stress_case(case, spec_name) -> CaseReport
-  llm.py        # Claude-powered "suggest the missing properties" helper
+  llm.py        # Tinker/Qwen3-powered "suggest the missing properties" helper
 examples/
   sort/        withdraw/        sanitize/
 app.py          # Streamlit UI

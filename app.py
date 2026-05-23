@@ -20,24 +20,24 @@ DIAGNOSIS_BADGE = {
 
 
 def _api_key_available() -> bool:
-    if os.environ.get("ANTHROPIC_API_KEY"):
+    if os.environ.get("TINKER_API_KEY"):
         return True
     try:
-        return bool(st.secrets.get("ANTHROPIC_API_KEY"))
+        return bool(st.secrets.get("TINKER_API_KEY"))
     except Exception:
         return False
 
 
 def _load_api_key_into_env() -> None:
     """Streamlit Cloud stores secrets in st.secrets; copy into env for the SDK."""
-    if os.environ.get("ANTHROPIC_API_KEY"):
+    if os.environ.get("TINKER_API_KEY"):
         return
     try:
-        key = st.secrets.get("ANTHROPIC_API_KEY")
+        key = st.secrets.get("TINKER_API_KEY")
     except Exception:
         key = None
     if key:
-        os.environ["ANTHROPIC_API_KEY"] = key
+        os.environ["TINKER_API_KEY"] = key
 
 
 st.set_page_config(page_title="SpecStress", layout="wide")
@@ -122,22 +122,22 @@ if report and report_is_current:
             st.info(n)
 
     if report.diagnosis == "UNDERCONSTRAINED":
-        st.subheader("🤖 Strengthen this spec with Claude")
+        st.subheader("🤖 Strengthen this spec with Qwen3 (Tinker)")
         st.caption(
-            "Claude reads the intent, the weak spec, and the surviving mutants, "
-            "and proposes the missing properties."
+            "A Tinker-hosted Qwen3 reads the intent, the weak spec, and the surviving "
+            "mutants, and proposes the missing properties."
         )
 
         if not _api_key_available():
             st.info(
-                "Set `ANTHROPIC_API_KEY` to enable AI suggestions. Locally: "
-                "`export ANTHROPIC_API_KEY=...`. On Streamlit Cloud: add it under "
-                "**Settings → Secrets** as `ANTHROPIC_API_KEY = \"...\"`."
+                "Set `TINKER_API_KEY` to enable AI suggestions. Locally: "
+                "`export TINKER_API_KEY=...`. On Streamlit Cloud: add it under "
+                "**Settings → Secrets** as `TINKER_API_KEY = \"...\"`."
             )
         else:
             if st.button("Suggest stronger spec", type="secondary"):
                 _load_api_key_into_env()
-                with st.spinner("Asking Claude for missing properties..."):
+                with st.spinner("Asking Qwen3 (via Tinker) for missing properties..."):
                     try:
                         st.session_state["suggestion"] = suggest_stronger_spec(
                             case, spec_name, report
@@ -145,7 +145,7 @@ if report and report_is_current:
                     except MissingAPIKeyError as e:
                         st.error(str(e))
                     except Exception as e:  # noqa: BLE001 — surface SDK errors verbatim
-                        st.error(f"Claude API error: {e}")
+                        st.error(f"Tinker API error: {e}")
 
         if st.session_state.get("suggestion"):
             st.markdown(st.session_state["suggestion"])
