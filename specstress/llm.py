@@ -7,7 +7,7 @@ from typing import Any
 from .models import CaseReport, SpecCase
 
 
-DEFAULT_MODEL = "claude-sonnet-4-6"
+DEFAULT_MODEL = "Qwen/Qwen3-30B-A3B-Instruct-2507"
 
 
 SYSTEM_PROMPT = """You are a specification-validation assistant. SpecStress runs a
@@ -31,7 +31,7 @@ test infrastructure. Do not add invariants the intent does not justify.
 
 
 class MissingAPIKeyError(RuntimeError):
-    """Raised when ANTHROPIC_API_KEY is unset and no client was injected."""
+    """Raised when TINKER_API_KEY is unset and no client was injected."""
 
 
 def _safe_source(fn: Any) -> str:
@@ -98,6 +98,18 @@ Suggest the missing properties. Follow the output format from the system message
 """.strip()
 
 
+def _build_sampling_client(model: str):
+    api_key = os.environ.get("TINKER_API_KEY")
+    if not api_key:
+        raise MissingAPIKeyError(
+            "TINKER_API_KEY is not set. Export it locally, or add it to "
+            "Streamlit Cloud's secrets as TINKER_API_KEY."
+        )
+    import tinker
+    service = tinker.ServiceClient()
+    return service.create_sampling_client(base_model=model)
+
+
 def suggest_stronger_spec(
     case: SpecCase,
     spec_name: str,
@@ -106,29 +118,37 @@ def suggest_stronger_spec(
     client: Any | None = None,
     model: str = DEFAULT_MODEL,
     max_tokens: int = 1500,
+    temperature: float = 0.7,
 ) -> str:
-    """Ask Claude to suggest missing properties. Returns the assistant's text."""
+    """Ask a Tinker-hosted Qwen3 to suggest missing properties. Returns the assistant's text."""
     if client is None:
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise MissingAPIKeyError(
-                "ANTHROPIC_API_KEY is not set. Export it locally, or add it to "
-                "Streamlit Cloud's secrets as ANTHROPIC_API_KEY."
-            )
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
+        client = _build_sampling_client(model)
 
     user_prompt = build_user_prompt(case, spec_name, report)
-    message = client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        system=[
-            {
-                "type": "text",
-                "text": SYSTEM_PROMPT,
-                "cache_control": {"type": "ephemeral"},
-            }
-        ],
-        messages=[{"role": "user", "content": user_prompt}],
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_prompt},
+    ]
+
+    tokenizer = client.get_tokenizer()
+    formatted = tokenizer.apply_chat_template(
+        messages,
+        add_generation_prompt=True,
+        tokenize=False,
     )
-    return message.content[0].text
+    prompt_ids = tokenizer.encode(formatted)
+
+    import tinker
+    model_input = tinker.ModelInput.from_ints(prompt_ids)
+    sampling_params = tinker.SamplingParams(
+        max_tokens=max_tokens,
+        temperature=temperature,
+    )
+    future = client.sample(
+        prompt=model_input,
+        num_samples=1,
+        sampling_params=sampling_params,
+    )
+    response = future.result()
+    output_tokens = response.sequences[0].tokens
+    return tokenizer.decode(output_tokens, skip_special_tokens=True)
