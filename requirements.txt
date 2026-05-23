@@ -1,4 +1,4 @@
 streamlit>=1.32
 hypothesis>=6.100
-anthropic>=0.40
+tinker>=0.22
 pytest>=8.0
